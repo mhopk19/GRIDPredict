@@ -10,7 +10,7 @@ df = pd.read_csv("cleaned_HomeC.csv", low_memory = False)
 
 # fill missing values in
 df.fillna(value = 0)
-df = df.iloc[:100]
+df = df.iloc[:400]
 print(len(df))
 print(df)
 
@@ -61,7 +61,7 @@ print_cpd(result, 'cloudCover')
 
 # 10 samples from the cpd of gen_sol given that the cloudCover is 0.75
 
-conditional_result = solver.query(variables=['gen_Sol'], evidence={'cloudCover':0.75})
+conditional_result = solver.query(variables=['gen_Sol'], evidence={'cloudCover':0.75, 'windBearing': 282.0})
 
 print_cpd(conditional_result, 'gen_Sol')
 
