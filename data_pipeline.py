@@ -75,3 +75,4 @@ class DataPipeline:
 pipeline = DataPipeline("input/HomeC.csv")
 pipeline.run_pipeline()
 
+print(pipeline.df)
