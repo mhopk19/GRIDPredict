@@ -160,7 +160,10 @@ cython_debug/
 #.idea/
 
 HomeC.csv
-<<<<<<< HEAD
 cleaned_HomeC.csv
-=======
->>>>>>> 334f943ca753a986eb5d1d17486a2c05b3c790c2
+energystorage/
+networks/vrnn_model.py
+networks/vrnn_train.py
+networks/torchexample.py
+networks/sample.py
+networks/data/

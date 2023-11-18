@@ -12,7 +12,7 @@ df = pd.read_csv("cleaned_HomeC.csv", low_memory = False)
 
 # fill missing values in
 df.fillna(value = 0)
-train_df = df.iloc[:100]
+train_df = df.iloc[:3000]
 test_df = df.iloc[4000:4400]
 df = df.iloc[:]
 
@@ -81,22 +81,25 @@ for i,val in enumerate(range(4000,4400)):
                 cpd = solver.query(variables=['gen_Sol'])
 
     queried_solar = float(cpd_sample(cpd, 'gen_Sol', samples=1)[0])
-    gt_solar = float(df.iloc[i]['gen_Sol'])
+    gt_solar = float(df.iloc[i+10]['gen_Sol'])
     print("queried solar", queried_solar)
     print("gt solar", gt_solar)
     print("error", queried_solar - gt_solar)
     errors = np.append(errors, queried_solar - gt_solar)
     gt_values = np.append(gt_values, gt_solar)
 
-RMSE = np.sqrt(np.mean(errors**2))
+RMSE = (np.sqrt(np.mean(np.square((errors) / gt_values)))) * 100
+MAE = (np.sum(np.abs(errors) / gt_values) * 100) / len(gt_values)
 
 print("errors", errors)
 print("RMSE error", RMSE)
 print("RMSE percent of average value ", 100 * RMSE / np.mean(gt_values))
+print("MAE percent error", MAE)
 
 
 plt.plot(range(len(errors)), errors, 'b')
 plt.ylabel('Errors (kW)')
+plt.xlabel('Minute')
 plt.title("BN Solar Generation Estimate Error")
 plt.show()
 
