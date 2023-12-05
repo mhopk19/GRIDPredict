@@ -6,6 +6,8 @@ from pgmpy.inference import VariableElimination
 from statsmodels.tsa.api import VAR
 from statsmodels.tsa.stattools import grangercausalitytests
 import numpy as np
+from pgmpy.estimators import BicScore
+import networkx as nx
 
 # Function to load data
 def load_data(file_path):
@@ -52,9 +54,21 @@ def causal_discovery(data, maxlag, weather_variables, pred_variables, appliance_
     # Initialize dictionaries for potential parents
     potential_parents_for_pred = {var: [] for var in pred_variables}
     potential_parents_for_appliance = {var: [] for var in appliance_variables}
+    potential_parents_for_weather = {var: [] for var in weather_variables}
+
+    # find dependencies between weather variables
+    for i in weather_variables:
+        for j in weather_variables:
+            if i != j:
+                test_result = grangercausalitytests(data[[i, j]], maxlag=maxlag, verbose=False)
+                p_values = [test_result[k+1][0]['ssr_chi2test'][1] for k in range(maxlag)]
+                if min(p_values) < alpha:
+                    potential_parents_for_weather[j].append(i)
+
 
     # Perform Granger causality tests for prediction variables against weather and appliance variables
     for pred in pred_variables:
+        "update"
         for weather in weather_variables:
             test_result = grangercausalitytests(data[[pred, weather]], maxlag=maxlag, verbose=False)
             p_values = [test_result[i+1][0]['ssr_chi2test'][1] for i in range(maxlag)]
@@ -74,7 +88,7 @@ def causal_discovery(data, maxlag, weather_variables, pred_variables, appliance_
             if min(p_values) < alpha:
                 potential_parents_for_appliance[app].append(weather)
 
-    return potential_parents_for_pred, potential_parents_for_appliance
+    return potential_parents_for_pred, potential_parents_for_appliance, potential_parents_for_weather
 
 
 def define_node_order(potential_parents):
@@ -139,14 +153,47 @@ def define_node_order(potential_parents):
     # model = BayesianNetwork(edges)
     # return model
 
+# def learn_structure_k2(data, node_order, max_parents, potential_parents):
+#     k2 = K2Score(data)
+#     parents = {node: set() for node in node_order}
+#     G = nx.DiGraph()
+
+#     for node in node_order:
+#         best_score = float("-inf")
+#         best_candidate = None
+#         # Ensure node has an entry in potential_parents, even if it's an empty set
+#         candidates = set(potential_parents.get(node, []))
+
+#         while candidates and len(parents[node]) < max_parents:
+#             for candidate in candidates:
+#                 test_parents = parents[node] | {candidate}
+#                 test_edges = [(parent, node) for parent in test_parents]
+#                 test_model = BayesianNetwork(test_edges)
+#                 score = k2.score(test_model)
+
+#                 if score > best_score:
+#                     best_score = score
+#                     best_candidate = candidate
+            
+#             if best_candidate:
+#                 parents[node].add(best_candidate)
+#                 candidates.remove(best_candidate)
+#                 best_candidate = None
+#             else:
+#                 break
+
+#     edges = [(parent, child) for child, parent_set in parents.items() for parent in parent_set]
+#     model = BayesianNetwork(edges)
+#     return model
+
 def learn_structure_k2(data, node_order, max_parents, potential_parents):
     k2 = K2Score(data)
     parents = {node: set() for node in node_order}
+    G = nx.DiGraph()
 
     for node in node_order:
         best_score = float("-inf")
         best_candidate = None
-        # Ensure node has an entry in potential_parents, even if it's an empty set
         candidates = set(potential_parents.get(node, []))
 
         while candidates and len(parents[node]) < max_parents:
@@ -154,22 +201,59 @@ def learn_structure_k2(data, node_order, max_parents, potential_parents):
                 test_parents = parents[node] | {candidate}
                 test_edges = [(parent, node) for parent in test_parents]
                 test_model = BayesianNetwork(test_edges)
-                score = k2.score(test_model)
 
-                if score > best_score:
-                    best_score = score
-                    best_candidate = candidate
-            
+                # Check if adding this edge forms a loop
+                G.add_edges_from(test_edges)
+                if nx.is_directed_acyclic_graph(G):
+                    score = k2.score(test_model)
+                    if score > best_score:
+                        best_score = score
+                        best_candidate = candidate
+                # Remove the edge for next iteration
+                # remove cycles
+                G.remove_edges_from(test_edges)
+
             if best_candidate:
                 parents[node].add(best_candidate)
                 candidates.remove(best_candidate)
+                # Add the best edge to the graph
+                G.add_edge(best_candidate, node)
                 best_candidate = None
             else:
                 break
 
-    edges = [(parent, child) for child, parent_set in parents.items() for parent in parent_set]
-    model = BayesianNetwork(edges)
+    model = BayesianNetwork(G.edges())
     return model
+
+def remove_minimal_impact_edge(G, data):
+    cycles = list(nx.simple_cycles(G))
+    if not cycles:
+        return G
+
+    min_score_impact = float('inf')
+    edge_to_remove = None
+
+    for cycle in cycles:
+        for edge in cycle:
+            # Temporarily remove the edge and calculate score
+            G.remove_edge(*edge)
+            temp_model = BayesianNetwork(G.edges())
+            temp_model.fit(data)
+            score = BicScore(data).score(temp_model)
+
+            # Update the minimum score impact edge
+            if score < min_score_impact:
+                min_score_impact = score
+                edge_to_remove = edge
+
+            # Add the edge back for next iteration
+            G.add_edge(*edge)
+
+    # Remove the edge with the least impact on the score
+    if edge_to_remove:
+        G.remove_edge(*edge_to_remove)
+
+    return G
 
 
 # Function to learn parameters of the model
@@ -223,15 +307,16 @@ def main():
     weather_variables = ['temperature', 'humidity', 'visibility', 'pressure', 'windSpeed', 'cloudCover', 'precipIntensity', 'dewPoint']
     appliance_variables = ['Dishwasher', 'Home office', 'Fridge', 'Wine cellar', 'Garage door', 'Barn', 'Well', 'Microwave', 'Living room', 'Furnace', 'Kitchen']
     pred_variables = ['use_HO', 'gen_Sol']
+    # pred_variables = ['use_HO']
     # Select only the specified variables
     selected_variables = weather_variables + appliance_variables + pred_variables
     data = data[selected_variables]
 
     # Apply causal discovery to identify potential parents
-    potential_parents_for_pred, potential_parents_for_appliance = causal_discovery(data, maxlag=5, weather_variables=weather_variables, pred_variables=pred_variables, appliance_variables=appliance_variables, alpha=0.05)
+    potential_parents_for_pred, potential_parents_for_appliance, potential_parents_for_weathers = causal_discovery(data, maxlag=5, weather_variables=weather_variables, pred_variables=pred_variables, appliance_variables=appliance_variables, alpha=0.05)
 
     # Merge potential parents dictionaries
-    potential_parents = {**potential_parents_for_pred, **potential_parents_for_appliance}
+    potential_parents = {**potential_parents_for_pred, **potential_parents_for_appliance, **potential_parents_for_weathers}
 
     # Define the node order
     node_order = define_node_order(potential_parents)

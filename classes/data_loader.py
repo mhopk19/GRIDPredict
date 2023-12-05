@@ -13,7 +13,7 @@ from torch.utils.data import Dataset, DataLoader
 sys.path.append("./../")
 import classes.powerdf as pdf
 import matplotlib.pyplot as plt
-
+import pickle
 
 class smarthome_dataset(Dataset):
     def __init__(self, csv_file, dayahead = False,
@@ -98,4 +98,11 @@ if __name__ == "__main__":
             open = True
         except:
             open = False
+
+    import pickle
+ 
+    db = {}
+    db["data"] = "cleaned_HomeC.csv"
+    with open('cleaned_HomeC.pickle', 'wb') as handle:
+        pickle.dump(handle)
 

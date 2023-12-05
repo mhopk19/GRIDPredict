@@ -30,12 +30,12 @@ def kl_sum_loss(output, target):
     return loss
 
 class MLP_baseline(nn.Module):
-    def __init__(self, num_inputs):
+    def __init__(self, num_inputs, num_features):
         super(MLP_baseline, self).__init__()
         self.layer1_nodes = 256
         self.layer2_nodes = 64
         self.output_layers = 2
-        self.num_inputs = num_inputs * 24
+        self.num_inputs = num_inputs * num_features
         self.layers = nn.Sequential(
             nn.Flatten(),
             nn.Linear(num_inputs * 24, self.layer1_nodes),
