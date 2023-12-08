@@ -14,6 +14,7 @@ sys.path.append("./../")
 import classes.powerdf as pdf
 import matplotlib.pyplot as plt
 import pickle
+import warnings
 
 class smarthome_dataset(Dataset):
     def __init__(self, csv_file, dayahead = False,
@@ -65,6 +66,7 @@ class smarthome_dataset(Dataset):
             ydata = self.df[output_columns].iloc[idx:idx+60]
             labels = torch.tensor(np.sum(ydata))
 
+        warnings.simplefilter(action='ignore', category = FutureWarning)
         inputs = torch.tensor(xdata)
         return inputs.float(), labels.float()
 
@@ -72,7 +74,7 @@ class smarthome_dataset(Dataset):
 if __name__ == "__main__":
     os.chdir("./..")
     df = pd.read_csv("cleaned_HomeC.csv", low_memory = False)
-    dataset = smarthome_dataset("cleaned_HomeC.csv" , dayahead = True)
+    dataset = smarthome_dataset("cleaned_HomeC.csv" , dayahead = False)
 
     print("dataset length", len(dataset))
 
@@ -94,6 +96,7 @@ if __name__ == "__main__":
         try:
             inputs, label = next(iter(dataloader))  
             print(inputs.shape)
+            print(label.shape)
             #print("input {} : label {}".format(inputs,label))
             open = True
         except:

@@ -51,8 +51,10 @@ fig, axs = plt.subplots(2)
 fig.suptitle('Estimated Graph: (top) PC (bottom) Hillclimb-Search')
 
 plt.axes(axs[0])
-nx.draw(pc_graph, with_labels=True)
+nx.draw(pc_graph, with_labels=True,
+        font_size = 6)
 plt.axes(axs[1])
-nx.draw(hillclimb_graph, with_labels=True)
+nx.draw(hillclimb_graph, with_labels=True,
+        font_size = 6)
     
 plt.show()

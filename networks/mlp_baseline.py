@@ -34,11 +34,10 @@ class MLP_baseline(nn.Module):
         super(MLP_baseline, self).__init__()
         self.layer1_nodes = 256
         self.layer2_nodes = 64
-        self.output_layers = 2
-        self.num_inputs = num_inputs * num_features
+        self.output_layers = 1
+        self.feature_size = num_inputs * num_features
         self.layers = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(num_inputs * 24, self.layer1_nodes),
+            nn.Linear(self.feature_size, self.layer1_nodes),
             nn.ReLU(),
             nn.Linear(self.layer1_nodes, self.layer2_nodes),
             nn.ReLU(),
@@ -46,7 +45,7 @@ class MLP_baseline(nn.Module):
         )
 
     def forward(self,x):
-        return self.layers(x)
+        return self.layers(x.view(-1, self.feature_size))
     
     def load_model(self,file):
         self.load_state_dict(torch.load(file))
@@ -54,7 +53,35 @@ class MLP_baseline(nn.Module):
     def save_model(self,file):
         torch.save(self.state_dict(), file)
 
+def train_mlp_model(mlp_model, data_loader, epochs = 1, save_file = ""):
+    optimizer = torch.optim.Adam(mlp_model.parameters(), lr=0.001)
+    loss_fn = kl_sum_loss
+    print("Beginning Training...")
+    num_epochs = 1
+    for n in range(num_epochs):
+        total_loss = 0
+        for batch_idx, (x, y) in enumerate(data_loader):
+            if (batch_idx % 100 == 0):
+                print("batch {}".format(batch_idx))
+            x, y = next(iter(data_loader))
+            y_pred = mlp_model(x)
+            loss = loss_fn(y_pred, y)
+            total_loss = loss + total_loss
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            if (batch_idx > 100):
+                break
+        print("epoch loss:", loss.item())
+    if (save_file != ""):
+        torch.save(mlp_model, save_file)
 
+    return mlp_model
+
+def get_mlp_output(input, mlp_model):
+    y_pred = mlp_model(input).ravel()
+    formatted_output = y_pred
+    return formatted_output
 
 if __name__ == "__main__":
     os.chdir("./..")
@@ -73,7 +100,7 @@ if __name__ == "__main__":
     test_dataloader = DataLoader(test_dataset, batch_size = 50,
                             shuffle = True, num_workers = 0)
     
-    mlp_model = MLP_baseline(9)
+    mlp_model = MLP_baseline(1,9)
 
     optimizer = torch.optim.Adam(mlp_model.parameters(), lr=0.001)
 
@@ -87,6 +114,7 @@ if __name__ == "__main__":
             print("batch {}".format(batch_idx))
             x, y = next(iter(train_dataloader))
             y_pred = mlp_model(x)
+            print(y_pred.shape)
             loss = loss_fn(y_pred, y)
             total_loss = loss + total_loss
             optimizer.zero_grad()

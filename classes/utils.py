@@ -12,6 +12,22 @@ Functions
 """
 
 
+def get_component_containing(G, node):
+    """
+    returns: isolated subgraph containing "node"
+    """
+    UG = G.to_undirected()
+    sub_graphs = nx.connected_components(UG)
+    for graph in sub_graphs:
+        print("graph", graph)
+        for vert in graph:
+            print("vertex", vert)
+            if (str(vert) == str(node)):
+                subgraph = G.subgraph(graph)
+                return list (subgraph.edges)
+
+
+
 def ind_to_feature(ind):
     """
     returns the feature str associated with given index
@@ -78,4 +94,15 @@ class newDAG(DAG):
         return dag
 
 """
+G = nx.DiGraph()
+G.add_nodes_from([1,2,3,4])
+G.add_edge(1,2)
+G.add_edge(3,4)
+G.add_edge(2,5)
 
+# make an undirected copy of the digraph
+UG = G.to_undirected()
+
+x = get_component_containing(G, "1")
+# extract subgraphs
+print(x)

@@ -3,11 +3,18 @@ import pandas as pd
 from pgmpy.models import BayesianNetwork
 from pgmpy.estimators import K2Score, MaximumLikelihoodEstimator
 from pgmpy.inference import VariableElimination
+from pgmpy.models import BayesianModel
+from pgmpy.estimators import MaximumLikelihoodEstimator
+from pgmpy.estimators import BayesianEstimator
+from pgmpy.inference import VariableElimination
 from statsmodels.tsa.api import VAR
 from statsmodels.tsa.stattools import grangercausalitytests
 import numpy as np
 from pgmpy.estimators import BicScore
 import networkx as nx
+import torch
+import classes.utils as utils
+import copy
 
 # Function to load data
 def load_data(file_path):
@@ -55,6 +62,7 @@ def causal_discovery(data, maxlag, weather_variables, pred_variables, appliance_
     potential_parents_for_pred = {var: [] for var in pred_variables}
     potential_parents_for_appliance = {var: [] for var in appliance_variables}
     potential_parents_for_weather = {var: [] for var in weather_variables}
+    print(potential_parents_for_weather)
 
     # find dependencies between weather variables
     for i in weather_variables:
@@ -300,13 +308,47 @@ def make_predictions(model, evidence):
 # if __name__ == "__main__":
 #     main()
 
+def run_pipeline(file_path, weather_variables,
+                 appliance_variables,
+                 pred_variables):
+    data = load_data(file_path)
+    data = preprocess_data(data)
+    selected_variables = weather_variables + appliance_variables + pred_variables
+    data = data[selected_variables]
+
+
+    # Apply causal discovery to identify potential parents
+    potential_parents_for_pred, potential_parents_for_appliance, potential_parents_for_weathers = causal_discovery(data, maxlag=5, weather_variables=weather_variables, pred_variables=pred_variables, appliance_variables=appliance_variables, alpha=0.05)
+
+    # Merge potential parents dictionaries
+    potential_parents = {**potential_parents_for_pred, **potential_parents_for_appliance, **potential_parents_for_weathers}
+
+    # Define the node order
+    node_order = define_node_order(potential_parents)
+
+    # Learn the structure using K2 algorithm
+    model = learn_structure_k2(data, node_order, max_parents=10, potential_parents=potential_parents)
+    print("Learned Model Structure: ", model.edges())
+
+    try:
+        learn_parameters(model, data)
+
+        # Example evidence (modify as needed)
+        evidence = {'temperature': 20}  # Example, replace with actual variable and value
+        predictions = make_predictions(model, evidence)
+        print(predictions)
+    except: 
+        pass
+
+    return model
+"""
 def main():
     file_path = './cleaned_HomeC.csv'
     data = load_data(file_path)
     data = preprocess_data(data)
     weather_variables = ['temperature', 'humidity', 'visibility', 'pressure', 'windSpeed', 'cloudCover', 'precipIntensity', 'dewPoint']
     appliance_variables = ['Dishwasher', 'Home office', 'Fridge', 'Wine cellar', 'Garage door', 'Barn', 'Well', 'Microwave', 'Living room', 'Furnace', 'Kitchen']
-    pred_variables = ['use_HO', 'gen_Sol']
+    pred_variables = ['gen_Sol']
     # pred_variables = ['use_HO']
     # Select only the specified variables
     selected_variables = weather_variables + appliance_variables + pred_variables
@@ -331,7 +373,77 @@ def main():
     evidence = {'temperature': 20}  # Example, replace with actual variable and value
     predictions = make_predictions(model, evidence)
     print(predictions)
+"""
+
+def train_bn_model(network_edges, train_df):
+    model = BayesianNetwork(network_edges)
+    bn_est = BayesianEstimator(model,train_df)
+    cpds = bn_est.get_parameters(prior_type="BDeu",equivalent_sample_size=5,pseudo_counts=None,n_jobs=-1,weighted=False)
+    print("model", model)
+    print("cpds", cpds)
+    learned_model, evidence_nodes = utils.create_network_from_edges(network_edges,
+                                                        cpds,
+                                                        BayesianNetwork())
+    solver = VariableElimination(learned_model)
+
+    return solver, evidence_nodes
+
+
+def get_bn_output(input, nodes, 
+                  solver):
+    
+    def cpd_sample(cpd, variable, samples=1):
+        values = np.array(cpd.state_names[variable])
+        probs = np.array(cpd.values)
+        print("values", values)
+        print("probs", probs)
+        return np.random.choice(values,samples, True, p = probs)
+
+    variable_values = []
+    evidence_nodes = copy.copy(nodes)
+    evidence_nodes.remove('gen_Sol')
+    evidence_nodes = nodes
+    for node in evidence_nodes:
+        try:
+            node_ind = utils.feature_to_ind(node)
+            try:
+                variable_values.append((node, input[node_ind]))
+            except:
+                pass
+        except:
+            pass
+
+    queried = False
+    while (queried == False):
+        evidence_dict = {}
+        for ele in variable_values:
+            evidence_dict[ele[0]] = ele[1]
+        try:
+            evidence_dict = {}
+            for ele in variable_values:
+                evidence_dict[ele[0]] = ele[1]
+            cpd = solver.query(['gen_Sol'], evidence = evidence_dict)
+            queried = True
+            print("used evidence")
+        except:
+            variable_values.pop()
+            if (variable_values == []):
+                cpd = solver.query(variables=['gen_Sol'])
+                queried = True
+
+    queried = float(cpd_sample(cpd, 'gen_Sol', samples=1)[0])
+    return torch.tensor(queried, dtype=torch.float32)    
+
+
+
+
 
 # Run the pipeline
 if __name__ == "__main__":
-    main()
+    file_path = './cleaned_HomeC.csv'
+    weather_variables = ['temperature', 'humidity', 'visibility', 'pressure', 'windSpeed', 'cloudCover', 'precipIntensity', 'dewPoint']
+    appliance_variables = ['Dishwasher', 'Home office', 'Fridge', 'Wine cellar', 'Garage door', 'Barn', 'Well', 'Microwave', 'Living room', 'Furnace', 'Kitchen']
+    pred_variables = ['gen_Sol']
+    run_pipeline(file_path, weather_variables,
+                 appliance_variables,
+                 pred_variables)
