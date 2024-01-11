@@ -1,0 +1,4 @@
+[('visibility', 'pressure'), ('visibility', 'Microwave'), ('pressure', 'temperature'), ('pressure', 'Fridge'), ('pressure', 'Furnace'), ('pressure', 'Garage door'), ('pressure', 'Dishwasher'), ('pressure', 'Barn'), ('temperature', 'Well'), ('temperature', 'gen_Sol'), ('windSpeed', 'Wine cellar'), ('humidity', 'use_HO'), ('dewPoint', 'humidity'), ('dewPoint', 'windSpeed'), ('precipIntensity', 'Living room')]
+
+
+[('visibility', 'pressure'), ('visibility', 'Microwave'), ('pressure', 'temperature'), ('pressure', 'Furnace'), ('pressure', 'Dishwasher'), ('pressure', 'Garage door'), ('pressure', 'Barn'), ('pressure', 'Fridge'), ('temperature', 'dewPoint'), ('temperature', 'gen_Sol'), ('temperature', 'Well'), ('dewPoint', 'windSpeed'), ('dewPoint', 'humidity'), ('windSpeed', 'Wine cellar'), ('precipIntensity', 'Living room')]

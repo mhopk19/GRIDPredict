@@ -41,7 +41,7 @@ def compare_models(model_output_funcs, model_args, data_loader):
         x, y = next(iter(data_loader))
         for i,model in enumerate(model_output_funcs):
             y_pred = model_output_funcs[i](x, *model_args[i])
-            error_tensor[i][batch_idx] = torch.square(y - y_pred).item()
+            error_tensor[i][batch_ixd] = torch.square(y - y_pred).item()
         if (batch_idx > 100):
             break
 

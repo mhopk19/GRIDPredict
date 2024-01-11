@@ -1,4 +1,5 @@
 import networkx as nx
+import matplotlib.pyplot as plt
 from pgmpy.models import BayesianModel
 from pgmpy.models import BayesianNetwork
 from pgmpy.estimators import MaximumLikelihoodEstimator
@@ -69,40 +70,23 @@ def create_network_from_edges(edge_tuples,
     return network, nodes
 
 
-"""
+def draw_graph(nx_graph):
+    fig, axs = plt.subplots(1)
+    nx.draw(graph, with_labels=True,
+        font_size = 6)
+    plt.show()
 
-# Classes
 
-class newDAG(DAG):
-    def __init__(self, ebunch=None, latents=set()):
-        super(DAG, self).__init__(ebunch)
-        self.latents = set(latents)
-        cycles = []
-        try:
-            cycles = list(nx.find_cycle(self))
-        except nx.NetworkXNoCycle:
-            pass
-        else:
-            out_str = "Cycles are not allowed in a DAG."
-            out_str += "\nEdges indicating the path taken for a loop: "
-            out_str += "".join([f"({u},{v}) " for (u, v) in cycles])
-            raise ValueError(out_str)
-    
-    def getDAG(self):
-        dag = DAG()
-        dag.add_edges_from(self.ebunch)
-        return dag
+if __name__ == "__main__":
+    G = nx.DiGraph()
+    G.add_nodes_from([1,2,3,4])
+    G.add_edge(1,2)
+    G.add_edge(3,4)
+    G.add_edge(2,5)
 
-"""
-G = nx.DiGraph()
-G.add_nodes_from([1,2,3,4])
-G.add_edge(1,2)
-G.add_edge(3,4)
-G.add_edge(2,5)
+    # make an undirected copy of the digraph
+    UG = G.to_undirected()
 
-# make an undirected copy of the digraph
-UG = G.to_undirected()
-
-x = get_component_containing(G, "1")
-# extract subgraphs
-print(x)
+    x = get_component_containing(G, "1")
+    # extract subgraphs
+    print(x)

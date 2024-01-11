@@ -4,14 +4,13 @@
 # Folders
 
 ## Classes
-contains reoccuring classes that are useful for data-processing
+contains reoccuring classes that are useful for data-processing. One of the most important files in this folder is the utils.py file, which contains many utilities for manipulating graphs, including (draw_graphs.py)
 
 ## Input
 csv data
 
 ## Networks
 contains classes and utilities for specific PGM methods
-
 
 # Executables
 
